@@ -12,7 +12,7 @@ SUPABASE_KEY = "sb_publishable_-B0KFlf9HhJyX61V88X6wQ_7bfu86YD"
 # Usa il file caricato direttamente su GitHub
 st.set_page_config(
     page_title="MySwimWork", 
-    page_icon="Icona.jpeg", 
+    page_icon="https://myswimwork-dpidewfmyq9gqsjfod5bsn.streamlit.app/", 
     layout="centered"
 )
 
