@@ -9,6 +9,13 @@ st.set_page_config(page_title="MySwimWork", page_icon="🏊‍♂️", layout="c
 SUPABASE_URL = "https://lucinfwnhfatkqbkvcmm.supabase.co"
 SUPABASE_KEY = "sb_publishable_-B0KFlf9HhJyX61V88X6wQ_7bfu86YD"
 
+# Usa il file caricato direttamente su GitHub
+st.set_page_config(
+    page_title="MySwimWork", 
+    page_icon="Icona.png", 
+    layout="centered"
+)
+
 @st.cache_resource
 def init_connection():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -48,7 +55,7 @@ if st.session_state.pagina == "Dashboard":
             with col_f1:
                 sforzo_input = st.slider("Sforzo (RPE 1-10)", 1, 10, 5)
             with col_f2:
-                battiti_input = st.number_input("Battiti (BPM)", min_value=60, max_value=220, value=130, step=1)
+                battiti_input = st.number_input("Battiti (BPM)", min_value=60, max_value=220, value=130, step=10)
                 
             # Campo per inserire più tempi separati da virgola
             tempi_input = st.text_input("Tempi delle ripetute (es. 01:15, 01:14)")
