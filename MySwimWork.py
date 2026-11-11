@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
-# --- CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="MySwimWork", page_icon="🏊‍♂️", layout="centered")
 
 # --- CONFIGURAZIONE SUPABASE ---
 SUPABASE_URL = "https://lucinfwnhfatkqbkvcmm.supabase.co"
@@ -12,7 +10,7 @@ SUPABASE_KEY = "sb_publishable_-B0KFlf9HhJyX61V88X6wQ_7bfu86YD"
 # Usa il file caricato direttamente su GitHub
 st.set_page_config(
     page_title="MySwimWork", 
-    page_icon="Icona.jpeg", 
+    page_icon="Icona.png", 
     layout="centered"
 )
 
@@ -26,7 +24,7 @@ supabase = init_connection()
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "Dashboard"
 
-# --- MENU LATERALE ---
+# --- MENU LATERALE (aggiornato con il Convertitore) ---
 with st.sidebar:
     st.subheader("Menu Rapido")
     
@@ -35,6 +33,9 @@ with st.sidebar:
         
     if st.button("🏊‍♂️ Strokes", use_container_width=True):
         st.session_state.pagina = "Strokes"
+
+    if st.button("⏱️ Convertitore", use_container_width=True):
+        st.session_state.pagina = "Convertitore"
         
     if st.button("⚙️ Admin Mode", use_container_width=True):
         st.session_state.pagina = "Admin"
@@ -44,44 +45,43 @@ if st.session_state.pagina == "Dashboard":
     st.title("📊 Dashboard")
     st.caption("I tuoi allenamenti, metriche e grafici")
     
-    # Form di inserimento rapido
     with st.expander("➕ Aggiungi un nuovo allenamento e tempi", expanded=False):
         with st.form("form_nuovo_allenamento", clear_on_submit=True):
             data_input = st.date_input("Data")
             centrale_input = st.text_input("Centrale (es. 10x100 stile)")
-            stile_input = st.selectbox("Stile Principale", ["Stile Libero", "Dorso", "Rana", "Delfino", "Misto"])
+            
+            col_s1, col_s2 = st.columns(2)
+            with col_s1:
+                stile_input = st.selectbox("Stile Principale", ["Stile Libero", "Dorso", "Rana", "Delfino", "Misto"])
+            with col_s2:
+                categoria_input = st.selectbox("Categoria Lavoro", ["A1", "A2", "B1", "B2", "B3", "C1", "C2"])
             
             col_f1, col_f2 = st.columns(2)
             with col_f1:
                 sforzo_input = st.slider("Sforzo (RPE 1-10)", 1, 10, 5)
             with col_f2:
-                battiti_input = st.number_input("Battiti (BPM)", min_value=60, max_value=220, value=130, step=10)
+                battiti_input = st.number_input("Battiti (BPM)", min_value=60, max_value=220, value=130, step=1)
                 
-            # Campo per inserire più tempi separati da virgola
             tempi_input = st.text_input("Tempi delle ripetute (es. 01:15, 01:14)")
-            
             note_input = st.text_area("Note e Sensazioni")
             
             btn_salva = st.form_submit_button("Salva nel Cloud")
             
             if btn_salva:
-                # 'Battiti' con la B maiuscola come richiesto dal database
                 nuovo_record = {
                     "Data": str(data_input),
                     "Centrale": centrale_input,
                     "Stile": stile_input,
+                    "Categoria": categoria_input,
                     "Sforzo": sforzo_input,
                     "Battiti": battiti_input,
                     "Note": note_input
                 }
                 try:
-                    # 1. Inserisci l'allenamento principale e ottieni l'ID generato
                     res_allenamento = supabase.table("allenamenti").insert(nuovo_record).execute()
                     
                     if res_allenamento.data:
                         allenamento_id = res_allenamento.data[0]["id"]
-                        
-                        # 2. Se hai inserito dei tempi, dividili e salvali nella tabella 'tempi'
                         if tempi_input.strip():
                             lista_tempi = [t.strip() for t in tempi_input.split(",")]
                             for t in lista_tempi:
@@ -98,15 +98,12 @@ if st.session_state.pagina == "Dashboard":
 
     st.markdown("---")
     
-    # Lettura dati e visualizzazione
     try:
         risposta = supabase.table("allenamenti").select("*").execute()
         dati = risposta.data
         
         if dati:
             df = pd.DataFrame(dati)
-            
-            # Normalizziamo i nomi delle colonne in minuscolo per gestirli comodamente in pandas
             df.columns = [str(col).lower() for col in df.columns]
             
             if "data" in df.columns:
@@ -114,24 +111,15 @@ if st.session_state.pagina == "Dashboard":
                 df = df.sort_values("data")
             
             totale_sessioni = len(df)
+            sforzo_medio = round(df["sforzo"].mean(), 1) if "sforzo" in df.columns and not df["sforzo"].isnull().all() else 0
+            battiti_medio = round(df["battiti"].mean(), 1) if "battiti" in df.columns and not df["battiti"].isnull().all() else 0
             
-            sforzo_medio = 0
-            if "sforzo" in df.columns and not df["sforzo"].isnull().all():
-                sforzo_medio = round(df["sforzo"].mean(), 1)
-                
-            battiti_medio = 0
-            if "battiti" in df.columns and not df["battiti"].isnull().all():
-                battiti_medio = round(df["battiti"].mean(), 1)
-            
-            # Metriche principali
             col1, col2, col3 = st.columns(3)
             col1.metric("Sessioni", f"{totale_sessioni}")
             col2.metric("Sforzo Medio (RPE)", f"{sforzo_medio}/10")
             col3.metric("Battiti Medi", f"{battiti_medio} BPM")
             
             st.markdown("---")
-            
-            # Grafico Sforzo (solo RPE)
             st.subheader("📈 Andamento dello Sforzo (RPE) nel Tempo")
             if "sforzo" in df.columns and "data" in df.columns:
                 df_grafico = df.set_index("data")[["sforzo"]]
@@ -147,6 +135,90 @@ if st.session_state.pagina == "Dashboard":
             
     except Exception as e:
         st.warning(f"Errore nel caricamento dei dati: {e}")
+
+
+# --- PAGINA: CONVERTITORE VASCHE ---
+elif st.session_state.pagina == "Convertitore":
+    st.title("⏱️ Convertitore Vasca Corta ⇄ Vasca Lunga")
+    st.caption("Converti i tuoi tempi tra vasca da 25m (SCM) e vasca da 50m (LCM).")
+
+    # Dizionario con i differenziali (in secondi) presi dalla tabella ufficiale
+    # Struttura: "Gara": {"Uomini": secondi, "Donne": secondi}
+    tabella_differenziali = {
+        "50 stile libero": {"Uomini": 0.80, "Donne": 0.70},
+        "100 stile libero": {"Uomini": 1.75, "Donne": 1.50},
+        "200 stile libero": {"Uomini": 3.75, "Donne": 3.30},
+        "400 stile libero": {"Uomini": 8.50, "Donne": 7.20},
+        "800 stile libero": {"Uomini": 18.35, "Donne": 14.80},
+        "1500 stile libero": {"Uomini": 37.00, "Donne": 28.50},
+        "50 dorso": {"Uomini": 1.45, "Donne": 1.25},
+        "100 dorso": {"Uomini": 3.00, "Donne": 2.60},
+        "200 dorso": {"Uomini": 6.40, "Donne": 5.60},
+        "50 rana": {"Uomini": 0.85, "Donne": 0.70},
+        "100 rana": {"Uomini": 2.60, "Donne": 2.20},
+        "200 rana": {"Uomini": 5.90, "Donne": 4.90},
+        "50 farfalla": {"Uomini": 0.50, "Donne": 0.45},
+        "100 farfalla": {"Uomini": 1.40, "Donne": 1.35},
+        "200 farfalla": {"Uomini": 3.75, "Donne": 3.30},
+        "200 misti": {"Uomini": 5.00, "Donne": 4.50},
+        "400 misti": {"Uomini": 11.60, "Donne": 9.80}
+    }
+
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        sesso_scelto = st.selectbox("Sesso", ["Uomini", "Donne"])
+    with col_c2:
+        gara_scelta = st.selectbox("Gara", list(tabella_differenziali.keys()))
+
+    direzione = st.radio(
+        "Direzione di conversione:",
+        ["LCM -> SCM", "SCM -> LCM"]
+    )
+
+    # Input del tempo in formato stringa mm:ss.cc o ss.cc
+    tempo_str = st.text_input("Inserisci il tempo (es. 01:05.50 o 28.40)", "01:00.00")
+
+    if st.button("Converti Tempo", use_container_width=True):
+        try:
+            # Funzione di supporto per convertire stringa tempo in secondi totali
+            def stringa_a_secondi(t_str):
+                t_str = t_str.strip().replace("'", ":").replace('"', ".")
+                parti = t_str.split(":")
+                if len(parti) == 2:
+                    minuti = int(parti[0])
+                    secondi = float(parti[1])
+                    return minuti * 60 + secondi
+                else:
+                    return float(parti[0])
+
+            # Funzione di supporto per riconvertire i secondi in formato mm:ss.cc
+            def secondi_a_stringa(sec_tot):
+                if sec_tot < 0:
+                    sec_tot = 0
+                m = int(sec_tot // 60)
+                s = sec_tot % 60
+                if m > 0:
+                    return f"{m:02d}:{s:05.2f}".replace(".", ".")
+                else:
+                    return f"{s:05.2f}"
+
+            secondi_input = stringa_a_secondi(tempo_str)
+            diff = tabella_differenziali[gara_scelta][sesso_scelto]
+
+            if "Sottrai" in direzione:
+                risultato_sec = secondi_input - diff
+                tipo_arrivo = "Vasca Corta (25m)"
+            else:
+                risultato_sec = secondi_input + diff
+                tipo_arrivo = "Vasca Lunga (50m)"
+
+            tempo_finale = secondi_a_stringa(risultato_sec)
+
+            st.success(f"Risultato per **{gara_scelta}** ({sesso_scelto}): **{tempo_finale}** in **{tipo_arrivo}**")
+            st.info(f"Differenziale applicato: {diff} secondi")
+
+        except Exception as err:
+            st.error(f"Errore nel formato del tempo inserito. Usa un formato valido come 01:15.20 oppure 28.50. Dettaglio: {err}")
 
 # --- PAGINA: STROKES ---
 elif st.session_state.pagina == "Strokes":
