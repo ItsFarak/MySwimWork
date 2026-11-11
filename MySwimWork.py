@@ -142,8 +142,6 @@ elif st.session_state.pagina == "Convertitore":
     st.title("⏱️ Convertitore Vasca Corta ⇄ Vasca Lunga")
     st.caption("Converti i tuoi tempi tra vasca da 25m (SCM) e vasca da 50m (LCM).")
 
-    # Dizionario con i differenziali (in secondi) presi dalla tabella ufficiale
-    # Struttura: "Gara": {"Uomini": secondi, "Donne": secondi}
     tabella_differenziali = {
         "50 stile libero": {"Uomini": 0.80, "Donne": 0.70},
         "100 stile libero": {"Uomini": 1.75, "Donne": 1.50},
@@ -170,55 +168,57 @@ elif st.session_state.pagina == "Convertitore":
     with col_c2:
         gara_scelta = st.selectbox("Gara", list(tabella_differenziali.keys()))
 
-    direzione = st.radio(
-        "Direzione di conversione:",
-        ["LCM -> SCM", "SCM -> LCM"]
+    scelta_conversione = st.radio(
+        "Cosa vuoi fare?",
+        [
+            "LCM -> SCM",
+            "SCM -> LCM"
+        ]
     )
 
-    # Input del tempo in formato stringa mm:ss.cc o ss.cc
     tempo_str = st.text_input("Inserisci il tempo (es. 01:05.50 o 28.40)", "01:00.00")
 
     if st.button("Converti Tempo", use_container_width=True):
         try:
-            # Funzione di supporto per convertire stringa tempo in secondi totali
             def stringa_a_secondi(t_str):
                 t_str = t_str.strip().replace("'", ":").replace('"', ".")
                 parti = t_str.split(":")
                 if len(parti) == 2:
-                    minuti = int(parti[0])
-                    secondi = float(parti[1])
-                    return minuti * 60 + secondi
+                    return int(parti[0]) * 60 + float(parti[1])
                 else:
                     return float(parti[0])
 
-            # Funzione di supporto per riconvertire i secondi in formato mm:ss.cc
             def secondi_a_stringa(sec_tot):
                 if sec_tot < 0:
                     sec_tot = 0
                 m = int(sec_tot // 60)
                 s = sec_tot % 60
                 if m > 0:
-                    return f"{m:02d}:{s:05.2f}".replace(".", ".")
+                    return f"{m:02d}:{s:05.2f}"
                 else:
                     return f"{s:05.2f}"
 
             secondi_input = stringa_a_secondi(tempo_str)
             diff = tabella_differenziali[gara_scelta][sesso_scelto]
 
-            if "Sottrai" in direzione:
+            if scelta_conversione == "LCM -> SCM":
+                # Da Lunga a Corta (sottrae)
                 risultato_sec = secondi_input - diff
-                tipo_arrivo = "Vasca Corta (25m)"
+                tipo_arrivo = "Vasca Corta (25m - SCM)"
+                operazione = f"Sottratti {diff} secondi"
             else:
+                # Da Corta a Lunga (aggiunge)
                 risultato_sec = secondi_input + diff
-                tipo_arrivo = "Vasca Lunga (50m)"
+                tipo_arrivo = "Vasca Lunga (50m - LCM)"
+                operazione = f"Aggiunti {diff} secondi"
 
             tempo_finale = secondi_a_stringa(risultato_sec)
 
             st.success(f"Risultato per **{gara_scelta}** ({sesso_scelto}): **{tempo_finale}** in **{tipo_arrivo}**")
-            st.info(f"Differenziale applicato: {diff} secondi")
+            st.info(f"Differenziale: {operazione}")
 
         except Exception as err:
-            st.error(f"Errore nel formato del tempo inserito. Usa un formato valido come 01:15.20 oppure 28.50. Dettaglio: {err}")
+            st.error(f"Errore nel formato del tempo inserito. Usa un formato valido come 01:15.20 oppure 28.50. Dettaglio: {err}")            
 
 # --- PAGINA: STROKES ---
 elif st.session_state.pagina == "Strokes":
